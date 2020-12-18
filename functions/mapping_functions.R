@@ -1,47 +1,31 @@
 #### Averaging of mapped fields ####
 
-m_cant_predictor_model_average <- function(df) {
-
-  df <- df %>%
-    fselect(lon, lat, depth, eras, basin,
-            cant_intercept,
-            cant_aou,
-            cant_oxygen,
-            cant_phosphate,
-            cant_phosphate_star,
-            cant_silicate,
-            cant_tem,
-            cant_sal,
-            cant_sum,
-            gamma) %>%
-    fgroup_by(lon, lat, depth, eras, basin) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE))
-    }
-
-  return(df)
-
-}
-
 m_cant_model_average <- function(df) {
 
   df <- df %>%
-    fselect(lon, lat, depth, eras, basin, cant, cant_pos, gamma) %>%
-    fgroup_by(lon, lat, depth, eras, basin) %>% {
+    select(lon, lat, depth, eras, basin, basin_AIP,
+           starts_with("cant"),
+           gamma)
+  
+  df_average <- df %>%
+    fgroup_by(lon, lat, depth, eras, basin, basin_AIP) %>% {
       add_vars(fgroup_vars(.,"unique"),
                fmean(., keep.group_vars = FALSE),
                fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
     }
 
-  return(df)
+  return(df_average)
 
 }
 
-m_cstar_model_average <- function(df) {
+m_target_model_average <- function(df) {
 
   df <- df %>%
-    fselect(lon, lat, depth, era, basin, cstar, gamma) %>%
-    fgroup_by(lon, lat, depth, era, basin) %>% {
+    select(lon, lat, depth, era, basin, basin_AIP, gamma, 
+           params_local$MLR_target)
+
+  df <- df %>%
+    fgroup_by(lon, lat, depth, era, basin, basin_AIP) %>% {
       add_vars(fgroup_vars(.,"unique"),
                fmean(., keep.group_vars = FALSE),
                fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
@@ -80,11 +64,15 @@ m_cant_zonal_mean <- function(df) {
 
 }
 
-m_cstar_zonal_mean <- function(df) {
+
+m_target_zonal_mean <- function(df) {
 
   df <- df %>%
-    fselect(lat, depth, era, basin, basin_AIP,
-            cstar, gamma, cstar_sd, gamma_sd) %>%
+    select(lat, depth, era, basin, basin_AIP,
+          gamma, gamma_sd,
+          params_local$MLR_target, paste(params_local$MLR_target, "sd", sep = "_"))
+
+  df <- df %>%
     fgroup_by(lat, depth, era, basin, basin_AIP) %>% {
       add_vars(fgroup_vars(.,"unique"),
                fmean(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_mean"),
@@ -226,11 +214,11 @@ m_cut_gamma <- function(df, var) {
   var <- sym(var)
 
   df_Atl <- df %>%
-    filter(basin == "Atlantic") %>%
+    filter(basin_AIP == "Atlantic") %>%
     mutate(gamma_slab = cut(!!var, params_local$slabs_Atl))
 
   df_Ind_Pac <- df %>%
-    filter(basin == "Indo-Pacific") %>%
+    filter(basin_AIP %in% c("Indian", "Pacific")) %>%
     mutate(gamma_slab = cut(!!var, params_local$slabs_Ind_Pac))
 
   df <- bind_rows(df_Atl, df_Ind_Pac)
