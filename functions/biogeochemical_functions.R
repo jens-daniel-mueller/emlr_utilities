@@ -8,7 +8,6 @@ b_cstar <- function(tco2, phosphate, talk){
 
   }
 
-
 # calculate phosphate star
 b_phosphate_star <- function(phosphate, oxygen){
 
@@ -50,64 +49,56 @@ b_aou <- function(sal, tem, depth, oxygen) {
 # map cant from MLR coefficients and predictor variables
 
 b_cant <- function(df) {
-
+  
   df <- df %>%
-    mutate(cant = `delta_coeff_(Intercept)` +
-             delta_coeff_aou * aou +
-             delta_coeff_oxygen * oxygen +
-             delta_coeff_phosphate * phosphate +
-             delta_coeff_phosphate_star * phosphate_star +
-             delta_coeff_silicate * silicate +
-             delta_coeff_sal * sal +
-             delta_coeff_tem * tem)
+    mutate(cant_intercept = `delta_coeff_(Intercept)`)
+  
+  vars = params_local$MLR_predictors
+  
+  for (i_var in vars) {
+    df <- df %>%
+      mutate(!!sym(paste("cant_", i_var, sep = "")) :=
+               !!sym(i_var) *
+               !!sym(paste("delta_coeff_", i_var, sep = "")))
+  }
+  
+  df <- df %>%
+    select(-contains("delta_coeff_"))
+  
+  df <- df %>%
+    mutate(cant = reduce(select(., starts_with("cant_")), `+`))
+  
+  df <- df %>%
+    mutate(cant_pos = if_else(cant < 0, 0, cant))
 
   return(df)
 
 }
 
 
-# map cant predictor contributions from MLR coefficients and predictor variables
+# map target variable from MLR coefficients and predictor variables
 
-b_cant_predictor <- function(df) {
-
+b_target_model <- function(df) {
+  
   df <- df %>%
-    mutate(
-      cant_intercept = `delta_coeff_(Intercept)`,
-      cant_aou = delta_coeff_aou * aou,
-      cant_oxygen = delta_coeff_oxygen * oxygen,
-      cant_phosphate = delta_coeff_phosphate * phosphate,
-      cant_phosphate_star = delta_coeff_phosphate_star * phosphate_star,
-      cant_silicate = delta_coeff_silicate * silicate,
-      cant_sal = delta_coeff_sal * sal,
-      cant_tem = delta_coeff_tem * tem,
-      cant_sum = cant_intercept +
-        cant_aou +
-        cant_oxygen +
-        cant_phosphate +
-        cant_phosphate_star +
-        cant_silicate +
-        cant_sal +
-        cant_tem
-    )
-
-  return(df)
-
-}
-
-# map cstar from MLR coefficients and predictor variables
-
-b_cstar_model <- function(df) {
-
+    mutate(!!sym(paste(params_local$MLR_target, "intercept", sep = "_")) :=
+                   `coeff_(Intercept)`)
+  
+  vars = params_local$MLR_predictors
+  
+  for (i_var in vars) {
+    df <- df %>%
+      mutate(!!sym(paste(params_local$MLR_target, i_var, sep = "_")) :=
+               !!sym(i_var) *
+               !!sym(paste("coeff_", i_var, sep = "")))
+  }
+  
   df <- df %>%
-    mutate(cstar =
-             `coeff_(Intercept)` +
-             coeff_aou * aou +
-             coeff_oxygen * oxygen +
-             coeff_phosphate * phosphate +
-             coeff_phosphate_star * phosphate_star +
-             coeff_silicate * silicate +
-             coeff_sal * sal +
-             coeff_tem * tem)
+    select(-contains("coeff_"))
+  
+  df <- df %>%
+    mutate(!!sym(params_local$MLR_target) :=
+             reduce(select(., starts_with(paste(params_local$MLR_target, "_", sep = ""))), `+`))
 
   return(df)
 
