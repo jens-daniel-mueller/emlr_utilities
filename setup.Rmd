@@ -12,15 +12,25 @@ library(metR)
 ```
 
 ```{r define_updata_paths_utilities, include = FALSE}
-path_functions      <- "/nfs/kryo/work/updata/emlr_cant/utilities/functions/"
-path_files          <- "/nfs/kryo/work/updata/emlr_cant/utilities/files/"
+path_root           <- "/nfs/kryo/work/jenmueller/emlr_cant"
+path_functions      <- paste(path_root, "/utilities/functions/", sep = "")
+path_files          <- paste(path_root, "/utilities/files/", sep = "")
+```
+
+```{r read_params_global, include = FALSE}
+params_global <-
+  read_rds(paste(path_files,
+                 "params_global.rds",
+                 sep = ""))
 ```
 
 ```{r read_basinmask_file_global, include = FALSE}
 basinmask <-
   read_csv(paste(path_files,
                  "basin_mask_WOA18.csv",
-                 sep = ""))
+                 sep = ""),
+           col_types = cols("MLR_basins" = col_character()))
+
 ```
 
 ```{r read_section_coordinates_global, include = FALSE}
@@ -34,13 +44,6 @@ section_global_coordinates <-
 map <-
   read_rds(paste(path_files,
                  "map_landmask_WOA18.rds",
-                 sep = ""))
-```
-
-```{r read_params_global, include = FALSE}
-params_global <-
-  read_rds(paste(path_files,
-                 "params_global.rds",
                  sep = ""))
 ```
 
