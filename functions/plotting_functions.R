@@ -117,8 +117,10 @@ p_section_climatology_regular <-
     ggplot(aes(lat, depth, z = !!var)) +
     guides(fill = guide_colorsteps(barheight = unit(7, "cm"))) +
     scale_y_reverse() +
-    scale_x_continuous(breaks = seq(-80, 80, 40)) +
-    coord_cartesian(expand = 0) +
+    scale_x_continuous(breaks = seq(-100, 100, 40),
+                       limits = c(-85,85)) +
+    coord_cartesian(expand = 0,
+                    ylim = c(params_global$plotting_depth, 0)) +
     facet_wrap( ~ lon, ncol = 3, labeller = label_both) +
     theme(axis.title.x = element_blank()) +
     labs(subtitle = subtitle_text)
@@ -167,7 +169,7 @@ p_section_zonal <-
            plot_slabs = "y",
            drop_slabs = 1,
            breaks = params_global$breaks_cant_pos,
-           legend_title = expression(atop(Delta * C[ant],
+           legend_title = expression(atop(Delta * C[ant,pos],
                                           (mu * mol ~ kg ^ {-1}))),
            title_text = "Zonal mean section",
            subtitle_text = "") {
@@ -254,7 +256,7 @@ p_section_zonal <-
       section +
       coord_cartesian(
         expand = 0,
-        ylim = c(3000, 500)
+        ylim = c(params_global$plotting_depth, 500)
       ) +
       labs(x = expression(latitude~(degree*N)), y = "Depth (m)")
 
