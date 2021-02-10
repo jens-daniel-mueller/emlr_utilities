@@ -105,6 +105,7 @@ p_section_climatology_regular <-
   function(df,
            var,
            var_name = var,
+           surface = "n",
            col = "continuous",
            title_text = "Latitudinal sections",
            subtitle_text = "at predefined longitude intervals") {
@@ -119,8 +120,6 @@ p_section_climatology_regular <-
     scale_y_reverse() +
     scale_x_continuous(breaks = seq(-100, 100, 40),
                        limits = c(-85,85)) +
-    coord_cartesian(expand = 0,
-                    ylim = c(params_global$plotting_depth, 0)) +
     facet_wrap( ~ lon, ncol = 3, labeller = label_both) +
     theme(axis.title.x = element_blank()) +
     labs(subtitle = subtitle_text)
@@ -151,6 +150,22 @@ p_section_climatology_regular <-
                          drop = FALSE,
                          name = var_name) +
       labs(title = title_text)
+
+  }
+  
+  
+  # select surface or deep water y range
+  if (surface == "n") {
+
+    section <- section +
+      coord_cartesian(expand = 0,
+                      ylim = c(params_global$plotting_depth, 0))
+
+  } else {
+    
+    section <- section +
+      coord_cartesian(expand = 0,
+                      ylim = c(params_local$depth_min, 0))
 
   }
 
@@ -291,7 +306,8 @@ p_section_zonal_divergent_gamma_eras_basin <-
     ggplot(aes(lat, depth, z = !!var)) +
     geom_contour_filled(breaks = breaks) +
     scale_fill_scico_d(palette = "vik",
-                       drop = FALSE) +
+                       drop = FALSE,
+                       name = var_name) +
     geom_contour(aes(lat, depth, z = !!gamma),
                  breaks = slab_breaks,
                  col = "white") +
@@ -429,7 +445,7 @@ p_map_cant_slab <-
 
       map +
         geom_raster(data = df,
-                    aes(lon, lat, fill = cut(cant, breaks))) +
+                    aes(lon, lat, fill = cut(!!var, breaks))) +
         scale_fill_scico_d(palette = "vik",
                            drop = FALSE,
                            name = expression(atop(Delta * C[ant],

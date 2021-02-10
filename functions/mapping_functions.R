@@ -21,11 +21,11 @@ m_cant_model_average <- function(df) {
 m_target_model_average <- function(df) {
 
   df <- df %>%
-    select(lon, lat, depth, era, basin, basin_AIP, gamma, 
+    select(lon, lat, depth, era, eras, basin, basin_AIP, gamma, 
            params_local$MLR_target)
 
   df <- df %>%
-    fgroup_by(lon, lat, depth, era, basin, basin_AIP) %>% {
+    fgroup_by(lon, lat, depth, era, eras, basin, basin_AIP) %>% {
       add_vars(fgroup_vars(.,"unique"),
                fmean(., keep.group_vars = FALSE),
                fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
@@ -68,12 +68,12 @@ m_cant_zonal_mean <- function(df) {
 m_target_zonal_mean <- function(df) {
 
   df <- df %>%
-    select(lat, depth, era, basin, basin_AIP,
+    select(lat, depth, era, eras, basin, basin_AIP,
           gamma, gamma_sd,
           params_local$MLR_target, paste(params_local$MLR_target, "sd", sep = "_"))
 
   df <- df %>%
-    fgroup_by(lat, depth, era, basin, basin_AIP) %>% {
+    fgroup_by(lat, depth, era, eras, basin, basin_AIP) %>% {
       add_vars(fgroup_vars(.,"unique"),
                fmean(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_mean"),
                fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
