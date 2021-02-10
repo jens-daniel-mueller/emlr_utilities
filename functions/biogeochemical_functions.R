@@ -11,10 +11,19 @@ b_cstar <- function(tco2, phosphate, talk){
 # calculate phosphate star
 b_phosphate_star <- function(phosphate, oxygen){
 
-  phosphate_star = phosphate + (oxygen / params_local$rPO)  - params_local$rPO_offset
+  phosphate_star = phosphate + (oxygen / params_local$rPO) - params_local$rPO_offset
   return(phosphate_star)
 
   }
+
+
+# calculate silicate star
+b_silicate_star <- function(silicate, nitrate){
+  
+  silicate_star = silicate - nitrate
+  return(silicate_star)
+  
+}
 
 
 # calculate apparent oxygen utilization
