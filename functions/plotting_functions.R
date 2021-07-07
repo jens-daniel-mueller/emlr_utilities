@@ -195,7 +195,8 @@ p_section_zonal <-
     # plot base section
     section <- df %>%
       ggplot() +
-      guides(fill = guide_colorsteps(barheight = unit(8, "cm"))) +
+      guides(fill = guide_colorsteps(barheight = unit(8, "cm"),
+                                     show.limits = TRUE)) +
       scale_y_reverse() +
       scale_x_continuous(breaks = seq(-100, 100, 20),
                          limits = c(-85,85))
@@ -338,13 +339,12 @@ p_map_cant_inv <-
            col = "continuous",
            breaks = params_global$breaks_cant_pos_inv,
            title_text = "Column inventory map",
-           subtitle_text = "era: JGOFS/WOCE - GO-SHIP") {
-
+           subtitle_text = "") {
     var <- sym(var)
-
+    
     if (col == "continuous") {
       breaks_n <- length(breaks) - 1
-
+      
       df <- df %>%
         mutate(var_int = cut(!!var,
                              breaks,
@@ -360,23 +360,35 @@ p_map_cant_inv <-
         guides(fill = guide_colorsteps(barheight = unit(6, "cm"))) +
         labs(title = title_text,
              subtitle = subtitle_text)
-    } else {
-
+      
+    } else if (col == "divergent") {
       breaks = params_global$breaks_cant_inv
-
+      
       map +
         geom_raster(data = df,
                     aes(lon, lat, fill = cut(!!var, breaks))) +
-        scale_fill_scico_d(palette = "vik",
+        scale_fill_scico_d(palette = "cork",
                            drop = FALSE,
                            name = expression(atop(Delta * C[ant],
                                                   (mu * mol ~ kg ^ {-1})))) +
         guides(fill = guide_colorsteps(barheight = unit(6, "cm")))  +
         labs(title = title_text,
              subtitle = subtitle_text)
-
+      
+    } else if (col == "bias") {
+      breaks = params_global$breaks_cant_inv_offset
+      
+      map +
+        geom_raster(data = df,
+                    aes(lon, lat, fill = cut(!!var, breaks))) +
+        scale_fill_scico_d(palette = "vik",
+                           drop = FALSE,
+                           name = expression(atop(Delta * C[ant]~bias,
+                                                  (mu * mol ~ kg ^ {-1})))) +
+        guides(fill = guide_colorsteps(barheight = unit(6, "cm")))  +
+        labs(title = title_text,
+             subtitle = subtitle_text)
     }
-
   }
 
 
@@ -413,49 +425,48 @@ p_map_cant_slab <-
            var = "cant_pos",
            col = "continuous",
            breaks = params_global$breaks_cant_pos_inv,
-           legend_title = expression(atop(Delta * C[ant],
-                                          (mu * mol ~ kg ^ {-1}))),
-           title_text = "Isoneutral slab concentration map",
-           subtitle_text = "era: JGOFS/WOCE - GO-SHIP") {
-
+           legend_title = NULL,
+           title_text = "Density slab average",
+           subtitle_text = NULL) {
     var <- sym(var)
-
+    
+    slab_map <-
+      map +
+      geom_raster(data = df,
+                  aes(lon, lat, fill = cut(!!var,
+                                           breaks,
+                                           right = FALSE))) +
+      guides(fill = guide_colorsteps(barheight = unit(6, "cm"))) +
+      labs(title = title_text,
+           subtitle = subtitle_text)
+    
+    
     # plot map for chose color scale (default continuous)
     if (col == "continuous") {
-
-      breaks_n <- length(breaks) - 1
-
-      df <- df %>%
-        mutate(var_int = cut(!!var,
-                             breaks,
-                             right = FALSE))
-      map +
-        geom_raster(data = df,
-                    aes(lon, lat, fill = var_int)) +
-        scale_fill_manual(values = p_gruber_rainbow(breaks_n),
-                          name = legend_title,
-                          drop = FALSE) +
-        guides(fill = guide_colorsteps(barheight = unit(6, "cm"))) +
-        labs(title = title_text,
-             subtitle = subtitle_text)
-
+      
+      if (is.null(legend_title)) {
+        legend_title = expression(atop(Delta * C[ant],
+                                       (mu * mol ~ kg ^ {-1})))
+      }
+      
+      slab_map +
+        scale_fill_viridis_d(name = legend_title,
+                             drop = FALSE)
+      
     } else {
-
       breaks <- params_global$breaks_cant_inv
-
-      map +
-        geom_raster(data = df,
-                    aes(lon, lat, fill = cut(!!var, breaks))) +
+      
+      if (is.null(legend_title)){
+      legend_title <- expression(atop(Delta * C[ant],
+                                      (mu * mol ~ kg ^ {-1})))
+      }
+      
+      slab_map +
         scale_fill_scico_d(palette = "vik",
                            drop = FALSE,
-                           name = expression(atop(Delta * C[ant],
-                                                  (mu * mol ~ kg ^ {-1})))) +
-        guides(fill = guide_colorsteps(barheight = unit(6, "cm")))  +
-        labs(title = title_text,
-             subtitle = subtitle_text)
-
+                           name = legend_title)
+      
     }
-
   }
 
 

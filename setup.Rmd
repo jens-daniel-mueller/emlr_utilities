@@ -9,6 +9,7 @@ library(collapse)
 library(patchwork)
 library(scico)
 library(metR)
+library(ggforce)
 ```
 
 ```{r define_updata_paths_utilities, include = FALSE}
