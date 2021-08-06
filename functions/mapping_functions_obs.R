@@ -1,14 +1,14 @@
-#### Averaging of mapped fields ####
+#### Averaging of mapped dcant fields ####
 
-m_cant_model_average <- function(df) {
+m_dcant_3d_average <- function(df) {
 
   df <- df %>%
-    select(lon, lat, depth, eras, basin, basin_AIP,
-           starts_with("cant"),
+    select(data_source, lon, lat, depth, basin_AIP,
+           starts_with("dcant"),
            gamma)
   
   df_average <- df %>%
-    fgroup_by(lon, lat, depth, eras, basin, basin_AIP) %>% {
+    fgroup_by(data_source, lon, lat, depth, basin_AIP) %>% {
       add_vars(fgroup_vars(.,"unique"),
                fmean(., keep.group_vars = FALSE),
                fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
@@ -18,159 +18,45 @@ m_cant_model_average <- function(df) {
 
 }
 
-m_cant_model_average_data_source <- function(df) {
 
-  df <- df %>%
-    select(lon, lat, depth, eras, basin, basin_AIP, data_source,
-           starts_with("cant"),
-           gamma)
+
+# calculate layer thickness for each grid cell
+# to be used in inventory and slab inventory calculations
+m_layer_thickness <- function(df) {
   
-  df_average <- df %>%
-    fgroup_by(lon, lat, depth, eras, basin, basin_AIP, data_source) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
-  return(df_average)
-
-}
-
-m_target_model_average <- function(df) {
-
-  df <- df %>%
-    select(lon, lat, depth, era, eras, basin, basin_AIP, gamma, 
-           params_local$MLR_target)
-
-  df <- df %>%
-    fgroup_by(lon, lat, depth, era, eras, basin, basin_AIP) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
+  depth_level_volume <- df %>%
+    distinct(depth) %>%
+    arrange(depth)
+  
+  # determine depth level volume of each depth layer
+  depth_level_volume <- depth_level_volume %>%
+    mutate(
+      layer_thickness_above = replace_na((depth - lag(depth)) / 2, 0),
+      layer_thickness_below = replace_na((lead(depth) - depth) / 2, 0),
+      layer_thickness = layer_thickness_above + layer_thickness_below
+    ) %>%
+    ungroup() %>%
+    select(-c(layer_thickness_above,
+              layer_thickness_below))
+  
+  df <- full_join(df, depth_level_volume)
+  
   return(df)
-
-}
-
-m_target_model_average_data_source <- function(df) {
-
-  df <- df %>%
-    select(lon, lat, depth, era, eras, basin, basin_AIP, gamma, data_source,
-           params_local$MLR_target)
-
-  df <- df %>%
-    fgroup_by(lon, lat, depth, era, eras, basin, basin_AIP, data_source) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
-  return(df)
-
-}
-
-m_cant_predictor_zonal_mean <- function(df) {
-
-  df <- df %>%
-    fselect(lat, depth, eras, basin, basin_AIP,
-            cant_intercept:gamma) %>%
-    fgroup_by(lat, depth, eras, basin, basin_AIP) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE))
-    }
-
-  return(df)
-
-}
-
-m_cant_predictor_zonal_mean_data_source <- function(df) {
-
-  df <- df %>%
-    fselect(lat, depth, eras, basin, basin_AIP, data_source,
-            cant_intercept:gamma) %>%
-    fgroup_by(lat, depth, eras, basin, basin_AIP, data_source) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE))
-    }
-
-  return(df)
-
-}
-
-m_cant_zonal_mean <- function(df) {
-
-  df <- df %>%
-    fselect(lat, depth, eras, basin, basin_AIP,
-            cant, cant_pos, gamma, cant_sd, cant_pos_sd, gamma_sd) %>%
-    fgroup_by(lat, depth, eras, basin, basin_AIP) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_mean"),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
-  return(df)
-
-}
-
-m_cant_zonal_mean_data_source <- function(df) {
-
-  df <- df %>%
-    fselect(lat, depth, eras, basin, basin_AIP, data_source,
-            cant, cant_pos, gamma, cant_sd, cant_pos_sd, gamma_sd) %>%
-    fgroup_by(lat, depth, eras, basin, basin_AIP, data_source) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_mean"),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
-  return(df)
-
-}
-
-
-m_target_zonal_mean <- function(df) {
-
-  df <- df %>%
-    select(lat, depth, era, eras, basin, basin_AIP,
-          gamma, gamma_sd,
-          params_local$MLR_target, paste(params_local$MLR_target, "sd", sep = "_"))
-
-  df <- df %>%
-    fgroup_by(lat, depth, era, eras, basin, basin_AIP) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_mean"),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
-  return(df)
-
+  
 }
 
 
 # calculate dcant column inventory [mol m-2] from dcant concentration [umol kg-1]
 # inventories are calculated for a range of predefined inventory depth
 m_dcant_inv <- function(df) {
-
+  
   for (i_inventory_depth in params_global$inventory_depths) {
 
   # filter integration depth
   df_sub <- df %>%
     filter(depth <= i_inventory_depth)
 
-  depth_level_volume <- tibble(
-    depth = unique(df_sub$depth)) %>%
-    arrange(depth)
-
-  # determine depth level volume of each depth layer
-  depth_level_volume <- depth_level_volume %>%
-    mutate(layer_thickness_above = replace_na((depth - lag(depth)) / 2, 0),
-           layer_thickness_below = replace_na((lead(depth) - depth) / 2, 0),
-           layer_thickness = layer_thickness_above + layer_thickness_below) %>%
-    select(-c(layer_thickness_above,
-              layer_thickness_below))
-
-  df_sub <- full_join(df_sub, depth_level_volume)
+  df_sub <- m_layer_thickness(df_sub)
 
   # calculate cant layer inventory
   df_sub <- df_sub %>%
@@ -216,19 +102,7 @@ m_tcant_inv <- function(df) {
   df_sub <- df %>%
     filter(depth <= i_inventory_depth)
 
-  depth_level_volume <- tibble(
-    depth = unique(df_sub$depth)) %>%
-    arrange(depth)
-
-  # determine depth level volume of each depth layer
-  depth_level_volume <- depth_level_volume %>%
-    mutate(layer_thickness_above = replace_na((depth - lag(depth)) / 2, 0),
-           layer_thickness_below = replace_na((lead(depth) - depth) / 2, 0),
-           layer_thickness = layer_thickness_above + layer_thickness_below) %>%
-    select(-c(layer_thickness_above,
-              layer_thickness_below))
-
-  df_sub <- full_join(df_sub, depth_level_volume)
+  df_sub <- m_layer_thickness(df_sub)
 
   # calculate cant layer inventory
   df_sub <- df_sub %>%
@@ -263,86 +137,90 @@ m_tcant_inv <- function(df) {
 
 }
 
-# calculate cant inventory within each density slab
-m_cant_slab_inv_data_source <- function(df) {
+# calculate dcant budgets
+m_dcant_budget <- function(df) {
   
-    depth_level_volume <- df %>% 
-      distinct(data_source, depth) %>% 
-      arrange(depth)
-    
-    # determine depth level volume of each depth layer
-    depth_level_volume <- depth_level_volume %>%
-      group_by(data_source) %>% 
-      mutate(layer_thickness_above = replace_na((depth - lag(depth)) / 2, 0),
-             layer_thickness_below = replace_na((lead(depth) - depth) / 2, 0),
-             layer_thickness = layer_thickness_above + layer_thickness_below) %>%
-      ungroup() %>% 
-      select(-c(layer_thickness_above,
-                layer_thickness_below))
-    
-    df <- full_join(df, depth_level_volume)
-    
+  molC_to_PgC <- 12*1e-15
+  
+  df <- df %>% 
+    mutate(surface_area = earth_surf(lat, lon),
+           dcant_grid = dcant*surface_area*molC_to_PgC,
+           dcant_pos_grid = dcant_pos*surface_area*molC_to_PgC)
+  
     # calculate cant grid cell inventory
-    df <- df %>%
-      mutate(surface_area = earth_surf(lat, lon),
-             cant_grid_inv = cant * layer_thickness * 1.03 * surface_area,
-             cant_pos_grid_inv = cant_pos * layer_thickness * 1.03 * surface_area) %>%
-      select(-c(layer_thickness, surface_area))
-    
+  df_budget <- df %>%
+    group_by(data_source, inv_depth, method) %>% 
+    summarise(dcant = sum(dcant_grid, na.rm = TRUE),
+              dcant = round(dcant,3),
+              dcant_pos = sum(dcant_pos_grid, na.rm = TRUE),
+              dcant_pos = round(dcant_pos,3)) %>% 
+    ungroup() %>% 
+    pivot_longer(cols = dcant:dcant_pos,
+                 names_to = "estimate",
+                 values_to = "value")
+  
+  return(df_budget)
+  
+}
 
-    df_slab_inv <- df %>%
-      group_by(basin_AIP, data_source, gamma_slab) %>% 
-      summarise(cant_total = sum(cant_grid_inv)*12*1e-18,
-                cant_pos_total = sum(cant_pos_grid_inv)*12*1e-18) %>% 
-      ungroup()
-
+# calculate cant inventory within each density slab
+# requires to run m_layer_thickness()
+m_dcant_slab_budget <- function(df) {
+  
+  df <- m_layer_thickness(df)
+  
+  # calculate cant grid cell inventory
+  df <- df %>%
+    mutate(
+      surface_area = earth_surf(lat, lon),
+      dcant_grid = dcant * layer_thickness * 1.03 * surface_area,
+      dcant_pos_grid = dcant_pos * layer_thickness * 1.03 * surface_area
+    ) %>%
+    select(-c(surface_area))
+  
+  
+  df_slab_inv <- df %>%
+    group_by(basin_AIP, gamma_slab) %>%
+    summarise(
+      dcant = sum(dcant_grid) * 12 * 1e-18,
+      dcant_pos = sum(dcant_pos_grid) * 12 * 1e-18
+    ) %>%
+    ungroup()
+  
   return(df_slab_inv)
   
 }
 
-# calculate mean cant concentration within each grid cell of density slab
-m_cant_slab <- function(df) {
+# calculate mean dcant concentration within each grid cell of density slab
+# requires to run m_layer_thickness()
+m_dcant_slab_concentration <- function(df) {
 
+  df <- m_layer_thickness(df)
+  
+  # calculate cant grid cell inventory
+  df <- df %>%
+    mutate(surface_area = earth_surf(lat, lon),
+           layer_volume = layer_thickness * surface_area) %>%
+    select(-c(surface_area))
+  
+  
   df_group <- df %>%
-    group_by(lat, lon, gamma_slab, eras) %>%
-    summarise(cant_pos = mean(cant_pos, na.rm = TRUE),
-              cant = mean(cant, na.rm = TRUE),
-              depth_max = max(depth, na.rm = TRUE)) %>%
+    group_by(lat, lon, gamma_slab) %>%
+    summarise(dcant_pos = mean(dcant_pos, na.rm = TRUE),
+              dcant = mean(dcant, na.rm = TRUE),
+              dcant_pos_sd = mean(dcant_pos_sd, na.rm = TRUE),
+              dcant_sd = mean(dcant_sd, na.rm = TRUE),
+              layer_thickness = sum(layer_thickness),
+              layer_volume = sum(layer_volume),
+              n_layer = n()) %>%
     ungroup()
 
   return(df_group)
 
 }
 
-m_cant_slab_data_source <- function(df) {
-
-  df_group <- df %>%
-    group_by(lat, lon, gamma_slab, data_source) %>%
-    summarise(cant_pos = mean(cant_pos, na.rm = TRUE),
-              cant = mean(cant, na.rm = TRUE),
-              depth_max = max(depth, na.rm = TRUE)) %>%
-    ungroup()
-
-  return(df_group)
-
-}
 
 
-# calculate zonal mean section
-# old function that requires eras
-m_zonal_mean_section <- function(df) {
-
-  zonal_mean_section <- df %>%
-    select(-lon) %>%
-    fgroup_by(lat, depth, eras, basin_AIP) %>% {
-      add_vars(fgroup_vars(.,"unique"),
-               fmean(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_mean"),
-               fsd(., keep.group_vars = FALSE) %>% add_stub(pre = FALSE, "_sd"))
-    }
-
-  return(zonal_mean_section)
-
-}
 # new function that uses all numeric variables and only required grouping variables
 m_zonal_mean_sd <- function(df) {
 
@@ -396,19 +274,23 @@ m_grid_horizontal_coarse <- function(df) {
 #### Neutral density slab assignment ####
 # cut neutral density gamma into specific slabs for basins
 m_cut_gamma <- function(df, var) {
-
   var <- sym(var)
-
-  df_Atl <- df %>%
-    filter(basin_AIP == "Atlantic") %>%
-    mutate(gamma_slab = cut(!!var, params_local$slabs_Atl))
-
-  df_Ind_Pac <- df %>%
-    filter(basin_AIP %in% c("Indian", "Pacific")) %>%
-    mutate(gamma_slab = cut(!!var, params_local$slabs_Ind_Pac))
-
-  df <- bind_rows(df_Atl, df_Ind_Pac)
-
+  
+  if (params_local$MLR_basins != "1") {
+    df_Atl <- df %>%
+      filter(basin_AIP == "Atlantic") %>%
+      mutate(gamma_slab = cut(!!var, params_local$slabs_Atl))
+    
+    df_Ind_Pac <- df %>%
+      filter(basin_AIP %in% c("Indian", "Pacific")) %>%
+      mutate(gamma_slab = cut(!!var, params_local$slabs_Ind_Pac))
+    
+    df <- bind_rows(df_Atl, df_Ind_Pac)
+  } else {
+    df <- df %>%
+      mutate(gamma_slab = cut(!!var, params_local$slabs_Ind_Pac))
+  }
+  
   return(df)
-
+  
 }

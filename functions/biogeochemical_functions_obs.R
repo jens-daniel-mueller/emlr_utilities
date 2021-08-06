@@ -1,9 +1,17 @@
 #### Calculate derived variables ####
 
-# calculate cstar
-b_cstar <- function(tco2, phosphate, talk){
+# calculate cstar based on phosphate
+b_cstar_phosphate <- function(tco2, phosphate, talk){
 
   cstar = tco2  - (params_local$rCP * phosphate)  - 0.5 * (talk - (params_local$rNP * phosphate))
+  return(cstar)
+
+  }
+
+# calculate cstar based on nitrate
+b_cstar_nitrate <- function(tco2, nitrate, talk){
+
+  cstar = tco2  - (params_local$rCP/params_local$rNP * nitrate)  - 0.5 * (talk - nitrate)
   return(cstar)
 
   }
@@ -57,16 +65,16 @@ b_aou <- function(sal, tem, depth, oxygen) {
 
 # map cant from MLR coefficients and predictor variables
 
-b_cant <- function(df) {
+b_dcant <- function(df) {
   
   df <- df %>%
-    mutate(cant_intercept = `delta_coeff_(Intercept)`)
+    mutate(dcant_intercept = `delta_coeff_(Intercept)`)
   
   vars = params_local$MLR_predictors
   
   for (i_var in vars) {
     df <- df %>%
-      mutate(!!sym(paste("cant_", i_var, sep = "")) :=
+      mutate(!!sym(paste("dcant_", i_var, sep = "")) :=
                !!sym(i_var) *
                !!sym(paste("delta_coeff_", i_var, sep = "")))
   }
@@ -75,10 +83,10 @@ b_cant <- function(df) {
     select(-contains("delta_coeff_"))
   
   df <- df %>%
-    mutate(cant = reduce(select(., starts_with("cant_")), `+`))
+    mutate(dcant = reduce(select(., starts_with("dcant_")), `+`))
   
   df <- df %>%
-    mutate(cant_pos = if_else(cant < 0, 0, cant))
+    mutate(dcant_pos = if_else(dcant < 0, 0, dcant))
 
   return(df)
 

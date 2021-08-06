@@ -1,12 +1,21 @@
 #### Calculate derived variables ####
 
-# calculate cstar
-b_cstar <- function(tco2, phosphate, talk){
-
+# calculate cstar based on phosphate
+b_cstar_phosphate <- function(tco2, phosphate, talk){
+  
   cstar = tco2  - (params_local$rCP * phosphate)  - 0.5 * (talk - (params_local$rNP * phosphate))
   return(cstar)
+  
+}
 
-  }
+# calculate cstar based on nitrate
+b_cstar_nitrate <- function(tco2, nitrate, talk){
+  
+  cstar = tco2  - (params_local$rCP/params_local$rNP * nitrate)  - 0.5 * (talk - nitrate)
+  return(cstar)
+  
+}
+
 
 # calculate phosphate star
 b_phosphate_star <- function(phosphate, oxygen){

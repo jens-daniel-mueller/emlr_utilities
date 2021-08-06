@@ -1,20 +1,3 @@
-#### Color scales  ####
-
-# Gruber color scale definition
-
-rgb2hex <- function(r, g, b)
-  rgb(r, g, b, maxColorValue = 100)
-
-cols = c(rgb2hex(95, 95, 95),
-         rgb2hex(0, 0, 95),
-         rgb2hex(100, 0, 0),
-         rgb2hex(100, 100, 0))
-
-p_gruber_rainbow <- colorRampPalette(cols)
-
-rm(rgb2hex, cols)
-
-
 #### Section plots  ####
 
 # Global section along transect
@@ -117,8 +100,6 @@ p_section_climatology_regular <-
     filter(lon %in% params_global$longitude_sections_regular) %>%
     ggplot(aes(lat, depth, z = !!var)) +
     guides(fill = guide_colorsteps(barheight = unit(7, "cm"))) +
-    scale_y_continuous(trans = trans_reverser("sqrt"),
-                       breaks = c(100,500,seq(1000,5000,1000))) +
     scale_x_continuous(breaks = seq(-100, 100, 40),
                        limits = c(-85,85)) +
     facet_wrap( ~ lon, ncol = 3, labeller = label_both) +
@@ -159,6 +140,8 @@ p_section_climatology_regular <-
   if (surface == "n") {
 
     section <- section +
+      scale_y_continuous(trans = trans_reverser("sqrt"),
+                         breaks = c(100,500,seq(1000,5000,1000))) +
       coord_cartesian(expand = 0,
                       ylim = c(params_global$plotting_depth, 0))
 
@@ -175,24 +158,34 @@ p_section_climatology_regular <-
 }
 
 
-# Zonal mean section of cant estimates
+# Zonal mean section of dcant estimates
 p_section_zonal <-
   function(df,
-           var = "cant_pos",
+           var = "dcant",
            var_name = var,
            col = "continuous",
            gamma = "gamma_mean",
            plot_slabs = "y",
            drop_slabs = 1,
-           breaks = params_global$breaks_cant_pos,
-           legend_title = expression(atop(Delta * C[ant,pos],
+           breaks = c(-Inf, seq(0,16,2), Inf),
+           legend_title = expression(atop(Delta * C[ant],
                                           (mu * mol ~ kg ^ {-1}))),
            title_text = "Zonal mean section",
            subtitle_text = "") {
 
     var <- sym(var)
     gamma <- sym(gamma)
-
+    
+    if (var == "dcant_mean"){
+      legend_title <- expression(atop(Delta * C["ant"],
+                                      (mol ~ m ^ {-2})))
+    }
+    
+    if (var == "dcant_pos_mean"){
+      legend_title <- expression(atop(Delta * C["ant,pos"],
+                                      (mol ~ m ^ {-2})))
+    }
+    
     # plot base section
     section <- df %>%
       ggplot() +
@@ -210,10 +203,21 @@ p_section_zonal <-
       section <- section +
         geom_contour_filled(aes(lat, depth, z = !!var),
                             breaks = breaks) +
-        scale_fill_manual(values = p_gruber_rainbow(breaks_n),
-                          drop = FALSE,
-                          name = legend_title)
+        scale_fill_viridis_d(drop = FALSE,
+                             name = legend_title)
     } else {
+      
+      breaks <- c(-Inf, seq(-6,6,1), Inf)
+      
+      if (var == "dcant_bias"){
+        legend_title <- expression(atop(Delta * Delta * C["ant"],
+                                        (mol ~ m ^ {-2})))
+      }
+      
+      if (var == "dcant_pos_bias"){
+        legend_title <- expression(atop(Delta * Delta * C["ant,pos"],
+                                        (mol ~ m ^ {-2})))
+      }
 
       section <- section +
         geom_contour_filled(aes(lat, depth, z = !!var),
@@ -229,7 +233,7 @@ p_section_zonal <-
     if (plot_slabs == "y") {
 
       # select slab breaks for plotted basin
-      if (i_basin_AIP == "Atlantic") {
+      if (unique(df$basin_AIP) == "Atlantic") {
         slab_breaks <- params_local$slabs_Atl
       } else {
         slab_breaks <- params_local$slabs_Ind_Pac
@@ -282,51 +286,113 @@ p_section_zonal <-
     surface / deep +
       plot_layout(guides = "collect")
 
-}
+  }
 
 
-p_section_zonal_divergent_gamma_eras_basin <-
+# Zonal mean section of dcant estimates
+p_section_zonal_continous_depth <-
   function(df,
-           var,
+           var = "dcant",
            var_name = var,
-           gamma) {
+           col = "continuous",
+           gamma = "gamma_mean",
+           plot_slabs = "y",
+           drop_slabs = 1,
+           breaks = c(-Inf, seq(0,16,2), Inf),
+           legend_title = expression(atop(Delta * C[ant],
+                                          (mu * mol ~ kg ^ {-1}))),
+           title_text = "Zonal mean section",
+           subtitle_text = "") {
 
-  var <- sym(var)
-  gamma <- sym(gamma)
+    var <- sym(var)
+    gamma <- sym(gamma)
+    
+    if (var == "dcant_mean"){
+      legend_title <- expression(atop(Delta * C["ant"],
+                                      (mol ~ m ^ {-2})))
+    }
+    
+    if (var == "dcant_pos_mean"){
+      legend_title <- expression(atop(Delta * C["ant,pos"],
+                                      (mol ~ m ^ {-2})))
+    }
+    
+    # plot base section
+    section <- df %>%
+      ggplot() +
+      guides(fill = guide_colorsteps(barheight = unit(8, "cm"),
+                                     show.limits = TRUE)) +
+      scale_y_continuous(trans = trans_reverser("sqrt"),
+                         breaks = c(100,500,seq(1000,5000,1000))) +
+      scale_x_continuous(breaks = seq(-100, 100, 20),
+                         limits = c(-85,85)) +
+      coord_cartesian(expand = 0) +
+      labs(title = title_text,
+           subtitle = subtitle_text)
 
-  max <- df %>%
-    select(!!var) %>%
-    pull %>%
-    abs() %>%
-    max()
+    # plot layer for chose color scale (default continuous)
+    if (col == "continuous") {
 
-  breaks = seq(-max, max, length.out = 20)
+      breaks_n <- length(breaks) - 1
 
-  slab_breaks <- c(params_local$slabs_Atl[1:12],Inf)
+      section <- section +
+        geom_contour_filled(aes(lat, depth, z = !!var),
+                            breaks = breaks) +
+        scale_fill_viridis_d(drop = FALSE,
+                             name = legend_title)
+    } else {
+      
+      breaks <- c(-Inf, seq(-6,6,1), Inf)
+      
+      if (var == "dcant_bias"){
+        legend_title <- expression(atop(Delta * Delta * C["ant"],
+                                        (mol ~ m ^ {-2})))
+      }
+      
+      if (var == "dcant_pos_bias"){
+        legend_title <- expression(atop(Delta * Delta * C["ant,pos"],
+                                        (mol ~ m ^ {-2})))
+      }
 
-  df %>%
-    ggplot(aes(lat, depth, z = !!var)) +
-    geom_contour_filled(breaks = breaks) +
-    scale_fill_scico_d(palette = "vik",
-                       drop = FALSE,
-                       name = var_name) +
-    geom_contour(aes(lat, depth, z = !!gamma),
-                 breaks = slab_breaks,
-                 col = "white") +
-    geom_text_contour(
-      aes(lat, depth, z = !!gamma),
-      breaks = slab_breaks,
-      col = "white",
-      skip = 2
-    ) +
-    scale_y_reverse() +
-    coord_cartesian(expand = 0) +
-    guides(fill = guide_colorsteps(barheight = unit(10, "cm"))) +
-    facet_grid(basin_AIP ~ eras)
+      section <- section +
+        geom_contour_filled(aes(lat, depth, z = !!var),
+                            breaks = breaks) +
+        scale_fill_scico_d(palette = "vik",
+                           drop = FALSE,
+                           name = legend_title)
 
+    }
+
+
+    # plot isoneutral density lines if chosen (default yes)
+    if (plot_slabs == "y") {
+
+      # select slab breaks for plotted basin
+      if (unique(df$basin_AIP) == "Atlantic") {
+        slab_breaks <- params_local$slabs_Atl
+      } else {
+        slab_breaks <- params_local$slabs_Ind_Pac
+      }
+
+
+      section <- section  +
+        geom_hline(yintercept = params_local$depth_min,
+                   col = "white",
+                   linetype = 2) +
+        geom_contour(aes(lat, depth, z = !!gamma),
+                     breaks = slab_breaks,
+                     col = "black") +
+        geom_text_contour(
+          aes(lat, depth, z = !!gamma),
+          breaks = slab_breaks,
+          col = "black",
+          skip = drop_slabs
+        )
+
+    }
+    
+    section
 }
-
-
 
 
 #### Map plots  ####
@@ -336,14 +402,49 @@ p_section_zonal_divergent_gamma_eras_basin <-
 # Color scale continuous (default) for pos cant or divergent for all cant
 p_map_cant_inv <-
   function(df,
-           var = "cant_pos_inv",
+           var = "dcant",
            col = "continuous",
-           breaks = params_global$breaks_cant_pos_inv,
+           breaks = c(-Inf, seq(0,14,2), Inf),
            title_text = "Column inventory map",
-           subtitle_text = "") {
+           subtitle_text = NULL) {
+    
     var <- sym(var)
+    legend_title <- var
+    
+    if (var == "dcant"){
+      legend_title <- expression(atop(Delta * C["ant"],
+                                      (mol ~ m ^ {-2})))
+    }
+    
+    if (var == "dcant_pos"){
+      legend_title <- expression(atop(Delta * C["ant,pos"],
+                                      (mol ~ m ^ {-2})))
+    }
+
+    if (var == "dcant_mean"){
+      legend_title <- expression(atop(Delta * C["ant,mean"],
+                                      (mol ~ m ^ {-2})))
+    }
+
+    if (var == "dcant_sd"){
+      legend_title <- expression(atop(Delta * C["ant,sd"],
+                                      (mol ~ m ^ {-2})))
+    }
+    
+    if (var == "tcant"){
+      legend_title <- expression(atop(C["ant"],
+                                      (mol ~ m ^ {-2})))
+      breaks = c(-Inf, seq(0,60,10), Inf)
+    }
+    
+    if (var == "tcant_pos"){
+      legend_title <- expression(atop(C["ant,pos"],
+                                      (mol ~ m ^ {-2})))
+      breaks = c(-Inf, seq(0,60,10), Inf)
+    }
     
     if (col == "continuous") {
+      
       breaks_n <- length(breaks) - 1
       
       df <- df %>%
@@ -353,11 +454,8 @@ p_map_cant_inv <-
       map +
         geom_raster(data = df,
                     aes(lon, lat, fill = var_int)) +
-        scale_fill_manual(values = p_gruber_rainbow(breaks_n),
-                          name = expression(atop(Delta * C["ant,pos"],
-                                                 (mol ~ m ^ {
-                                                   -2
-                                                 })))) +
+        scale_fill_viridis_d(drop = FALSE,
+                             name = legend_title)+
         guides(fill = guide_colorsteps(barheight = unit(6, "cm"))) +
         labs(title = title_text,
              subtitle = subtitle_text)
@@ -377,15 +475,24 @@ p_map_cant_inv <-
              subtitle = subtitle_text)
       
     } else if (col == "bias") {
-      breaks = params_global$breaks_cant_inv_offset
+      breaks = c(-Inf, seq(-6,6,1),Inf)
+      
+      if (var == "dcant_bias"){
+        legend_title <- expression(atop(Delta * Delta * C["ant"],
+                                        (mol ~ m ^ {-2})))
+      }
+      
+      if (var == "dcant_pos_bias"){
+        legend_title <- expression(atop(Delta * Delta * C["ant,pos"],
+                                        (mol ~ m ^ {-2})))
+      }
       
       map +
         geom_raster(data = df,
                     aes(lon, lat, fill = cut(!!var, breaks))) +
         scale_fill_scico_d(palette = "vik",
                            drop = FALSE,
-                           name = expression(atop(Delta * C[ant]~bias,
-                                                  (mu * mol ~ kg ^ {-1})))) +
+                           name = legend_title) +
         guides(fill = guide_colorsteps(barheight = unit(6, "cm")))  +
         labs(title = title_text,
              subtitle = subtitle_text)
@@ -395,37 +502,13 @@ p_map_cant_inv <-
 
 
 
-# plot column inventory map of cant offset
-p_map_cant_inv_offset <-
-  function(df,
-           var,
-           breaks = params_global$breaks_cant_inv_offset,
-           title_text = "Column inventory map - offset",
-           subtitle_text = "era: JGOFS/WOCE - GO-SHIP") {
-
-    var <- sym(var)
-
-    map +
-      geom_raster(data = df,
-                  aes(lon, lat, fill = cut(!!var, breaks))) +
-      scale_fill_scico_d(palette = "vik", drop = FALSE,
-                         name = expression(atop(Offset~Delta*C[ant],
-                                                (mol~m^{-2})))) +
-      guides(fill = guide_colorsteps(barheight = unit(6, "cm"))) +
-      labs(title = title_text,
-           subtitle = subtitle_text)
-
-  }
-
-
-
 # plot map of mean cant within density slab
 # Color scale continuous (default) for pos cant or divergent for all cant
-p_map_cant_slab <-
+p_map_dcant_slab <-
   function(df,
-           var = "cant_pos",
+           var = "dcant_pos",
            col = "continuous",
-           breaks = params_global$breaks_cant_pos_inv,
+           breaks = c(-Inf, seq(0,14,2),Inf),
            legend_title = NULL,
            title_text = "Density slab average",
            subtitle_text = NULL) {
@@ -449,13 +532,18 @@ p_map_cant_slab <-
         legend_title = expression(atop(Delta * C[ant],
                                        (mu * mol ~ kg ^ {-1})))
       }
+
+      if (var == sym("dcant_sd")) {
+        legend_title = expression(atop(Delta * C[ant] ~ SD,
+                                       (mu * mol ~ kg ^ {-1})))
+      }
       
       slab_map +
         scale_fill_viridis_d(name = legend_title,
                              drop = FALSE)
       
     } else {
-      breaks <- params_global$breaks_cant_inv
+      breaks <- c(-Inf, seq(-8,8,2), Inf)
       
       if (is.null(legend_title)){
       legend_title <- expression(atop(Delta * C[ant],
@@ -535,12 +623,21 @@ p_prop_prop <-
   function(df,
            var1,
            var2,
-           percentile = 98) {
-    
+           limit_percentile = 1,
+           bins = 50) {
     var1 <- sym(var1)
     var2 <- sym(var2)
     
+    
+    df <- df %>% 
+      filter(!!var1 <= quantile(!!var1, limit_percentile, na.rm = TRUE),
+             !!var1 >= quantile(!!var1, 1-limit_percentile, na.rm = TRUE),
+             !!var2 <= quantile(!!var2, limit_percentile, na.rm = TRUE),
+             !!var2 >= quantile(!!var2, 1-limit_percentile, na.rm = TRUE))
+    
+    
     # calculate equal axis limits and binwidth
+    
     axis_lims <- df %>%
       drop_na() %>%
       summarise(max_value = max(c(max(!!var1),
@@ -549,7 +646,7 @@ p_prop_prop <-
                                   min(!!var2))))
     
     binwidth_value <-
-      (axis_lims$max_value - axis_lims$min_value) / 60
+      (axis_lims$max_value - axis_lims$min_value) / bins
     axis_lims <- c(axis_lims$min_value, axis_lims$max_value)
     
     ggplot(df, aes(x = !!var1,
@@ -559,8 +656,7 @@ p_prop_prop <-
       geom_abline(slope = 1, col = 'red') +
       coord_equal(xlim = axis_lims,
                   ylim = axis_lims) +
-      facet_wrap( ~ basin_AIP) +
-      labs(title = "All years")
+      facet_wrap(~ basin_AIP)
     
   }
 
