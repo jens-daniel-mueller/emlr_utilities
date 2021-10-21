@@ -26,13 +26,14 @@ m_layer_thickness <- function(df) {
   
   depth_level_volume <- df %>%
     distinct(depth) %>%
-    arrange(depth)
+    arrange(depth) %>% 
+    drop_na()
   
   # determine depth level volume of each depth layer
   depth_level_volume <- depth_level_volume %>%
     mutate(
-      layer_thickness_above = replace_na((depth - lag(depth)) / 2, 0),
-      layer_thickness_below = replace_na((lead(depth) - depth) / 2, 0),
+      layer_thickness_above = (depth - lag(depth, default = 0)) / 2,
+      layer_thickness_below = (lead(depth, default = max(depth)) - depth) / 2,
       layer_thickness = layer_thickness_above + layer_thickness_below
     ) %>%
     ungroup() %>%
@@ -82,6 +83,59 @@ m_dcant_inv <- function(df) {
 
   if (!exists("df_inv")) {
     df_inv <- df_sub_inv
+  }
+
+
+  }
+
+  return(df_inv)
+
+}
+
+
+# calculate dcant column inventory [mol m-2] from dcant concentration [umol kg-1]
+# inventories are calculated within predefined depth layers
+m_dcant_inv_layer <- function(df) {
+  
+  layer <- params_global$inventory_depth_layers
+  df <- m_layer_thickness(df)
+  
+  for (i in length(layer)-1) {
+    
+  # i <- 1
+
+  # filter integration depth
+  df_sub <- df %>%
+    filter(depth >= layer[i],
+           depth < layer[i+1])
+  
+  if(nrow(df_sub) > 0){
+
+  # calculate cant layer inventory
+  df_sub <- df_sub %>%
+    mutate(dcant_layer_inv = dcant * layer_thickness * 1.03,
+           dcant_pos_layer_inv = dcant_pos * layer_thickness * 1.03) %>%
+    select(-layer_thickness)
+
+  # sum up layer inventories to column inventories
+  df_sub_inv <- df_sub %>%
+    group_by(lon, lat, basin_AIP) %>%
+    summarise(
+      dcant     = sum(dcant_layer_inv, na.rm = TRUE) / 1000,
+      dcant_pos = sum(dcant_pos_layer_inv, na.rm = TRUE) / 1000
+    ) %>%
+    ungroup()
+
+  df_sub_inv <- df_sub_inv %>%
+    mutate(inv_layer = paste(layer[i],"-", layer[i+1]))
+
+  if (exists("df_inv")) {
+    df_inv <- bind_rows(df_inv, df_sub_inv)
+  }
+
+  if (!exists("df_inv")) {
+    df_inv <- df_sub_inv
+  }
   }
 
 
@@ -173,8 +227,9 @@ m_dcant_slab_budget <- function(df) {
   df <- df %>%
     mutate(
       surface_area = earth_surf(lat, lon),
-      dcant_grid = dcant * layer_thickness * 1.03 * surface_area,
-      dcant_pos_grid = dcant_pos * layer_thickness * 1.03 * surface_area
+      volume_grid = layer_thickness * surface_area,
+      dcant_grid = dcant * 1.03 * volume_grid,
+      dcant_pos_grid = dcant_pos * 1.03 * volume_grid
     ) %>%
     select(-c(surface_area))
   
@@ -183,7 +238,8 @@ m_dcant_slab_budget <- function(df) {
     group_by(basin_AIP, gamma_slab) %>%
     summarise(
       dcant = sum(dcant_grid) * 12 * 1e-18,
-      dcant_pos = sum(dcant_pos_grid) * 12 * 1e-18
+      dcant_pos = sum(dcant_pos_grid) * 12 * 1e-18,
+      slab_volume = sum(volume_grid)
     ) %>%
     ungroup()
   

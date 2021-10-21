@@ -322,8 +322,10 @@ p_section_zonal_continous_depth <-
       ggplot() +
       guides(fill = guide_colorsteps(barheight = unit(8, "cm"),
                                      show.limits = TRUE)) +
-      scale_y_continuous(trans = trans_reverser("sqrt"),
-                         breaks = c(100,500,seq(1000,5000,1000))) +
+      scale_y_reverse(# trans = trans_reverser("sqrt"),
+                         # breaks = c(100,500,seq(1000,5000,1000)),
+                        limits = c(3000,0)
+                         ) +
       scale_x_continuous(breaks = seq(-100, 100, 20),
                          limits = c(-85,85)) +
       coord_cartesian(expand = 0) +
@@ -404,7 +406,7 @@ p_map_cant_inv <-
   function(df,
            var = "dcant",
            col = "continuous",
-           breaks = c(-Inf, seq(0,14,2), Inf),
+           breaks = c(-Inf, seq(0,16,2), Inf),
            title_text = "Column inventory map",
            subtitle_text = NULL) {
     
@@ -423,6 +425,11 @@ p_map_cant_inv <-
 
     if (var == "dcant_mean"){
       legend_title <- expression(atop(Delta * C["ant,mean"],
+                                      (mol ~ m ^ {-2})))
+    }
+
+    if (var == "dcant_mean_bias"){
+      legend_title <- expression(atop(Delta * C["ant,mean"] ~ bias,
                                       (mol ~ m ^ {-2})))
     }
 
@@ -478,12 +485,12 @@ p_map_cant_inv <-
       breaks = c(-Inf, seq(-6,6,1),Inf)
       
       if (var == "dcant_bias"){
-        legend_title <- expression(atop(Delta * Delta * C["ant"],
+        legend_title <- expression(atop(Delta * C["ant"] ~ bias,
                                         (mol ~ m ^ {-2})))
       }
       
       if (var == "dcant_pos_bias"){
-        legend_title <- expression(atop(Delta * Delta * C["ant,pos"],
+        legend_title <- expression(atop(Delta * C["ant,pos"] ~ bias,
                                         (mol ~ m ^ {-2})))
       }
       
