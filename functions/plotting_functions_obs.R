@@ -322,12 +322,16 @@ p_section_zonal_continous_depth <-
       ggplot() +
       guides(fill = guide_colorsteps(barheight = unit(8, "cm"),
                                      show.limits = TRUE)) +
-      scale_y_reverse(# trans = trans_reverser("sqrt"),
-                         # breaks = c(100,500,seq(1000,5000,1000)),
-                        limits = c(3000,0)
-                         ) +
+      scale_y_continuous(
+        trans = trans_reverser("sqrt"),
+        breaks = c(0,100, 500, seq(1500, 5000, 1000)),
+        limits = c(params_global$inventory_depth_standard, 0),
+        # breaks = seq(0,4900, 1000),
+        name = "Depth (m)"
+      )+
       scale_x_continuous(breaks = seq(-100, 100, 20),
-                         limits = c(-85,85)) +
+                         limits = c(-80,65),
+                         name = "Latitude (°N)") +
       coord_cartesian(expand = 0) +
       labs(title = title_text,
            subtitle = subtitle_text)
@@ -340,8 +344,11 @@ p_section_zonal_continous_depth <-
       section <- section +
         geom_contour_filled(aes(lat, depth, z = !!var),
                             breaks = breaks) +
-        scale_fill_viridis_d(drop = FALSE,
-                             name = legend_title)
+        colorspace::scale_fill_discrete_sequential(palette = "Rocket",
+                                                   drop = FALSE,
+                                                   name = legend_title)
+        # scale_fill_viridis_d(drop = FALSE,
+        #                      name = legend_title)
     } else {
       
       breaks <- c(-Inf, seq(-6,6,1), Inf)
@@ -359,9 +366,12 @@ p_section_zonal_continous_depth <-
       section <- section +
         geom_contour_filled(aes(lat, depth, z = !!var),
                             breaks = breaks) +
-        scale_fill_scico_d(palette = "vik",
-                           drop = FALSE,
-                           name = legend_title)
+        colorspace::scale_fill_discrete_divergingx(palette = "RdBu",
+                                                   drop = FALSE,
+                                                   name = legend_title)
+        # scale_fill_scico_d(palette = "cork",
+        #                    drop = FALSE,
+        #                    name = legend_title)
 
     }
 
@@ -418,6 +428,11 @@ p_map_cant_inv <-
                                       (mol ~ m ^ {-2})))
     }
     
+    if (var == "dcant_scaled"){
+      legend_title <- expression(atop(beta,
+                                      (mol ~ m ^ {-2} ~ µatm ^ {-1})))
+    }
+    
     if (var == "dcant_pos"){
       legend_title <- expression(atop(Delta * C["ant,pos"],
                                       (mol ~ m ^ {-2})))
@@ -459,10 +474,13 @@ p_map_cant_inv <-
                              breaks,
                              right = FALSE))
       map +
-        geom_raster(data = df,
+        geom_tile(data = df,
                     aes(lon, lat, fill = var_int)) +
-        scale_fill_viridis_d(drop = FALSE,
-                             name = legend_title)+
+        colorspace::scale_fill_discrete_sequential(palette = "Rocket",
+                                       drop = FALSE,
+                                       name = legend_title)+
+        # scale_fill_viridis_d(drop = FALSE,
+        #                      name = legend_title) +
         guides(fill = guide_colorsteps(barheight = unit(6, "cm"))) +
         labs(title = title_text,
              subtitle = subtitle_text)
@@ -471,12 +489,16 @@ p_map_cant_inv <-
       breaks = params_global$breaks_cant_inv
       
       map +
-        geom_raster(data = df,
+        geom_tile(data = df,
                     aes(lon, lat, fill = cut(!!var, breaks))) +
-        scale_fill_scico_d(palette = "cork",
+        colorspace::scale_fill_discrete_divergingx(palette = "RdBu",
                            drop = FALSE,
                            name = expression(atop(Delta * C[ant],
                                                   (mu * mol ~ kg ^ {-1})))) +
+        # scale_fill_scico_d(palette = "cork",
+        #                    drop = FALSE,
+        #                    name = expression(atop(Delta * C[ant],
+        #                                           (mu * mol ~ kg ^ {-1})))) +
         guides(fill = guide_colorsteps(barheight = unit(6, "cm")))  +
         labs(title = title_text,
              subtitle = subtitle_text)
@@ -495,7 +517,7 @@ p_map_cant_inv <-
       }
       
       map +
-        geom_raster(data = df,
+        geom_tile(data = df,
                     aes(lon, lat, fill = cut(!!var, breaks))) +
         scale_fill_scico_d(palette = "vik",
                            drop = FALSE,
@@ -523,7 +545,7 @@ p_map_dcant_slab <-
     
     slab_map <-
       map +
-      geom_raster(data = df,
+      geom_tile(data = df,
                   aes(lon, lat, fill = cut(!!var,
                                            breaks,
                                            right = FALSE))) +
@@ -586,9 +608,9 @@ p_map_climatology <-
     # prepare map
     map_base <-
       map +
-      geom_raster(data = df,
+      geom_tile(data = df,
                   aes(lon, lat, fill = !!var)) +
-      geom_raster(data = section_global_coordinates,
+      geom_tile(data = section_global_coordinates,
                   aes(lon, lat), fill = "white") +
       facet_wrap( ~ depth, labeller = label_both) +
       labs(title = title_text,

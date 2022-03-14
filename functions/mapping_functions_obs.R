@@ -97,52 +97,51 @@ m_dcant_inv <- function(df) {
 # inventories are calculated within predefined depth layers
 m_dcant_inv_layer <- function(df) {
   
-  layer <- params_global$inventory_depth_layers
+  layer <- params_global$inventory_depth_layer
   df <- m_layer_thickness(df)
   
-  for (i in length(layer)-1) {
+  for (i in 1:(length(layer) - 1)) {
+    # i <- 19
+    # filter integration depth
+    df_sub <- df %>%
+      filter(depth >= layer[i],
+             depth < layer[i + 1])
     
-  # i <- 1
-
-  # filter integration depth
-  df_sub <- df %>%
-    filter(depth >= layer[i],
-           depth < layer[i+1])
+    if (nrow(df_sub) > 0) {
+      # calculate cant layer inventory
+      df_sub <- df_sub %>%
+        mutate(
+          dcant_layer_inv = dcant * layer_thickness * 1.03,
+          dcant_pos_layer_inv = dcant_pos * layer_thickness * 1.03
+        ) %>%
+        select(-layer_thickness)
+      
+      # sum up layer inventories to column inventories
+      df_sub_inv <- df_sub %>%
+        group_by(lon, lat, basin_AIP) %>%
+        summarise(
+          dcant     = sum(dcant_layer_inv, na.rm = TRUE) / 1000,
+          dcant_pos = sum(dcant_pos_layer_inv, na.rm = TRUE) / 1000
+        ) %>%
+        ungroup()
+      
+      df_sub_inv <- df_sub_inv %>%
+        mutate(inv_depth = (layer[i] + layer[i + 1]) / 2)
+        # mutate(inv_depth = paste(layer[i], "-", layer[i + 1]))
+      
+      if (exists("df_inv")) {
+        df_inv <- bind_rows(df_inv, df_sub_inv)
+      }
+      
+      if (!exists("df_inv")) {
+        df_inv <- df_sub_inv
+      }
+    }
+    
+  }
   
-  if(nrow(df_sub) > 0){
-
-  # calculate cant layer inventory
-  df_sub <- df_sub %>%
-    mutate(dcant_layer_inv = dcant * layer_thickness * 1.03,
-           dcant_pos_layer_inv = dcant_pos * layer_thickness * 1.03) %>%
-    select(-layer_thickness)
-
-  # sum up layer inventories to column inventories
-  df_sub_inv <- df_sub %>%
-    group_by(lon, lat, basin_AIP) %>%
-    summarise(
-      dcant     = sum(dcant_layer_inv, na.rm = TRUE) / 1000,
-      dcant_pos = sum(dcant_pos_layer_inv, na.rm = TRUE) / 1000
-    ) %>%
-    ungroup()
-
-  df_sub_inv <- df_sub_inv %>%
-    mutate(inv_layer = paste(layer[i],"-", layer[i+1]))
-
-  if (exists("df_inv")) {
-    df_inv <- bind_rows(df_inv, df_sub_inv)
-  }
-
-  if (!exists("df_inv")) {
-    df_inv <- df_sub_inv
-  }
-  }
-
-
-  }
-
   return(df_inv)
-
+  
 }
 
 
@@ -277,7 +276,9 @@ m_dcant_slab_concentration <- function(df) {
 
 
 
-# new function that uses all numeric variables and only required grouping variables
+# zonal mean section of gridded data
+# calculated for all numeric variables
+# uses only mandatory gridding variables
 m_zonal_mean_sd <- function(df) {
 
   zonal_mean_section <- df %>%
@@ -292,6 +293,48 @@ m_zonal_mean_sd <- function(df) {
 
 }
 
+
+# zonal mean section of bottle data with preceding lat/depth gridding of observations
+# calculated for all numeric variables
+# uses only mandatory gridding variables
+m_zonal_mean_sd_bottle <- function(df) {
+  
+  df <- df %>%
+    mutate(
+      depth = cut(depth,
+                       seq(0, 1e4, 200),
+                       seq(100, 1e4, 200)),
+      depth = as.numeric(as.character(depth)),
+      lat = cut(lat,
+                     seq(-100, 100, 2),
+                     seq(-99, 100, 2)),
+      lat = as.numeric(as.character(lat))
+    )
+
+  zonal_mean_section <- m_zonal_mean_sd(df)
+
+  return(zonal_mean_section)
+
+}
+
+
+
+#### Temporal gridding ####
+
+# cut years into decades
+
+m_grid_decade <- function(year) {
+
+  decade <- cut(
+      year,
+      c(1989, 2000, 2010, 2021),
+      right = FALSE,
+      labels = c("1989-1999", "2000-2009", "2010-2020")
+    )
+  
+  return(decade)
+
+}
 
 #### Horizontal gridding ####
 
